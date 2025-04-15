@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>富山県 単木ポイントデータ</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <script src='https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.js'></script>
+    <link href='https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.css' rel='stylesheet' />
+    <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
+    <style>
+        html,
+        body,
+        #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        .popup-table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .popup-table th,
+        .popup-table td {
+            border: 1px solid #ddd;
+            text-align: left;
+            padding: 8px;
+            overflow-wrap: break-word;
+        }
+
+        .popup-table th {
+            background-color: #f2f2f2;
+        }
+
+        .maplibregl-popup-content {
+            height: 40vh;
+            overflow: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script type="text/javascript">
+        let protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        var map = new maplibregl.Map({
+            container: 'map',
+            style: 'dark.json',
+            center: [137.2316, 36.6362],
+            zoom: 9.45,
+            pitch: 0,
+            maxPitch: 85,
+            hash: true,
+            attributionControl: false
+        })
+
+        map.addControl(new maplibregl.NavigationControl());
+        map.addControl(new maplibregl.FullscreenControl());
+        map.addControl(new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: false
+            },
+            fitBoundsOptions: { maxZoom: 18 },
+            trackUserLocation: true,
+            showUserLocation: true
+        }));
+        map.addControl(new maplibregl.ScaleControl({
+            maxWidth: 200,
+            unit: 'metric'
+        }));
+
+        map.addControl(new maplibregl.AttributionControl({
+            compact: true,
+            customAttribution: '（<a href="https://twitter.com/shi__works" target="_blank">X(旧Twitter)</a> | <a href="" target="_blank">Github</a>） '
+        }));
+
+        map.on('load', () => {
+            // 単木ポイントソース
+            map.addSource('tanboku', {
+                type: 'vector',
+                url: 'pmtiles://https://shiworks2.xsrv.jp/pmtiles/pref-toyama/単木ポイント_富山県.pmtiles',
+                attribution: '<a href="https://www.geospatial.jp/ckan/dataset/toyama_tanboku">富山県 単木ポイントデータ</a>'
+            });
+
+            // たとえば「樹種」属性が 'アカマツ', 'カラマツ', 'スギ', 'ヒノキ', 'マツ', ... の場合
+            // カテゴリーごとに色を指定する match 式をあらかじめ用意
+            const tanbokuColorExpression = [
+                'match',
+                ['get', '樹種'],
+                'アカマツ', '#ff4b4b',  // 赤系
+                'カラマツ', '#ff9900',  // オレンジ系
+                'スギ', '#009900',      // 緑系
+                'ヒノキ', '#66bbff',    // 水色系
+                'マツ', '#ffd700',      // 黄系
+                /* 上記に含まれない樹種はデフォルト色（黒など） */
+                '#B2B2B2'
+            ];
+
+            // 単木ポイントレイヤー
+            map.addLayer({
+                'id': 'tanboku-points-1',
+                'type': 'circle',
+                'source': 'tanboku',
+                'source-layer': '単木ポイント_富山県fgb',
+                'minzoom': 11,
+                'maxzoom': 23,
+                'paint': {
+                    // グロー用に大きめの半径とブラーを設定しつつ、色分けは match 式で行う
+                    'circle-color': tanbokuColorExpression,
+                    'circle-radius': 18,
+                    'circle-blur': 2.5,
+                    'circle-opacity': 0.6
+                }
+            });
+
+            // 単木ポイントレイヤー
+            map.addLayer({
+                'id': 'tanboku-points-2',
+                'type': 'circle',
+                'source': 'tanboku',
+                'source-layer': '単木ポイント_富山県fgb',
+                'minzoom': 11,
+                'maxzoom': 23,
+                'paint': {
+                    // こちらも同様に match 式で色を分ける
+                    // 半径やブラー値を小さくして二段階めのグローを表現
+                    'circle-color': tanbokuColorExpression,
+                    'circle-radius': 9,
+                    'circle-blur': 1.5,
+                    'circle-opacity': 0.8
+                }
+            });
+
+            // 単木ポイントレイヤ
+            map.addLayer({
+                'id': 'tanboku-points-3',
+                'type': 'circle',
+                'source': 'tanboku',
+                'source-layer': '単木ポイント_富山県fgb',
+                'minzoom': 11,
+                'maxzoom': 23,
+                'paint': {
+                    'circle-color': 'rgba(255, 255, 255, 1)',
+                    'circle-radius': 1,
+                    'circle-blur': 0,
+                    'circle-opacity': 1
+                }
+            });
+
+            const speciesSettings = [
+                { species: 'アカマツ', color: 'rgba(255,75,75,0.5)' },
+                { species: 'カラマツ', color: 'rgba(255,153,0,0.5)' },
+                { species: 'スギ', color: 'rgba(0,153,0,0.5)' },
+                { species: 'ヒノキ', color: 'rgba(102,187,255,0.5)' },
+                { species: 'マツ', color: 'rgba(255,215,0,0.5)' }
+            ];
+
+            speciesSettings.forEach(function (item) {
+                map.addLayer({
+                    id: `heatmap-${item.species}`,
+                    type: 'heatmap',
+                    source: 'tanboku',
+                    'source-layer': '単木ポイント_富山県fgb',
+                    minzoom: 0,
+                    maxzoom: 11,
+                    filter: ['==', ['get', '樹種'], item.species],
+                    paint: {
+                        'heatmap-color': [
+                            'interpolate',
+                            ['linear'],
+                            ['heatmap-density'],
+                            0, 'rgba(255, 255, 255, 0)',  // 密度 0 では透明
+                            1, item.color               // 密度 1 では樹種ごとの指定色
+                        ],
+                        'heatmap-radius': [
+                            'interpolate',
+                            ['exponential', 2],
+                            ['zoom'],
+                            2, 8,
+                            9, 20
+                        ],
+                        // ヒートマップ全体を明るくするための intensity 調整
+                        'heatmap-intensity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            0, 1,
+                            9, 3
+                        ]
+                    }
+                });
+            });
+
+        });
+
+        map.on("click", "tanboku-points-1", (e) => {
+            const coordinates = e.features[0].geometry.coordinates.slice();
+            const properties = e.features[0].properties;
+
+            let tableHTML = "<table class='popup-table'>";
+            tableHTML += "<tr><th>属性</th><th>値</th></tr>";
+            for (let key in properties) {
+                tableHTML += `<tr><td>${key}</td><td>${properties[key]}</td></tr>`;
+            }
+            tableHTML += "</table>";
+
+            new maplibregl.Popup({
+                maxWidth: "300px"
+            })
+                .setLngLat(coordinates)
+                .setHTML(tableHTML)
+                .addTo(map);
+        });
+    </script>
+
+</body>
+
+</html>
